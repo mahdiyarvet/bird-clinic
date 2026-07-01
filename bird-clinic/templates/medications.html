@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block page_title %}مدیریت داروها{% endblock %}
+{% block content %}
+<div class="tabs-bar">
+    <a href="{{ url_for('medications', tab='inventory') }}" class="tab {% if tab == 'inventory' %}active{% endif %}">📦 موجودی انبار</a>
+    <a href="{{ url_for('medications', tab='needs') }}" class="tab {% if tab == 'needs' %}active{% endif %}">🔴 نیاز به تهیه</a>
+</div>
+
+{% if tab == 'inventory' %}
+<div class="table-wrap">
+<table class="data-table">
+<thead><tr><th>دارو</th><th>انگلیسی</th><th>نوع</th><th>غلظت</th><th>موجودی</th><th>واحد</th><th>حداقل</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+<tbody>
+{% for item in pagination.items %}
+<tr>
+    <td><strong>{{ item.drug_name }}</strong></td>
+    <td><small>{{ item.drug_name_en or '—' }}</small></td>
+    <td>{{ item.drug_type or '—' }}</td>
+    <td>{{ item.concentration or '—' }}</td>
+    <td>{{ item.quantity }}</td>
+    <td>{{ item.unit }}</td>
+    <td>{{ item.min_stock }}</td>
+    <td>{% if item.quantity <= item.min_stock %}<span class="badge badge-danger">کم</span>{% else %}<span class="badge badge-active">موجود</span>{% endif %}</td>
+    <td>
+        <form method="POST" action="{{ url_for('update_inventory', item_id=item.id) }}" class="inline-form qty-form">
+            <button type="button" class="qty-btn" onclick="var i=this.parentNode.querySelector('input[name=quantity]');i.value=Math.max(0,parseFloat(i.value)-1);">▼</button>
+            <input type="number" name="quantity" value="{{ item.quantity }}" step="0.1" class="form-input form-input-xs">
+            <button type="button" class="qty-btn" onclick="var i=this.parentNode.querySelector('input[name=quantity]');i.value=parseFloat(i.value)+1;">▲</button>
+            <button type="submit" class="btn btn-success btn-xs">ثبت</button>
+        </form>
+        {% if current_user.is_admin %}
+        <form method="POST" action="{{ url_for('delete_inventory', item_id=item.id) }}" class="inline-form" onsubmit="return confirm('حذف؟');">
+            <button type="submit" class="btn btn-danger btn-xs">🗑️</button>
+        </form>
+        {% endif %}
+    </td>
+</tr>
+{% else %}<tr><td colspan="9" class="empty-text">موجودی خالی</td></tr>{% endfor %}
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<div class="pagination">
+    {% for p in pagination.iter_pages() %}
+    {% if p %}<a href="{{ url_for('medications', tab='inventory', page=p) }}" class="page-link {% if p == pagination.page %}active{% endif %}">{{ p }}</a>
+    {% else %}<span class="page-dots">...</span>{% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Add Form -->
+<div class="card card-form" style="margin-top:24px;">
+    <h3>➕ افزودن به موجودی</h3>
+    <form method="POST" action="{{ url_for('add_inventory') }}">
+        <div class="form-row">
+            <div class="form-group"><label>نام دارو (فارسی)</label><input type="text" name="drug_name" class="form-input drug-autocomplete" required></div>
+            <div class="form-group"><label>نام انگلیسی</label><input type="text" name="drug_name_en" class="form-input"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>نوع دارو</label><select name="drug_type" class="form-input">{% for t in drug_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>غلظت</label><input type="text" name="concentration" class="form-input" placeholder="مثلاً 10%"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>تعداد/مقدار</label><input type="number" name="quantity" step="0.1" class="form-input" value="0"></div>
+            <div class="form-group"><label>واحد</label><select name="unit" class="form-input">{% for u in drug_units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>حداقل موجودی</label><input type="number" name="min_stock" step="0.1" class="form-input" value="0"></div>
+        </div>
+        <div class="form-group"><label>توضیحات</label><input type="text" name="notes" class="form-input"></div>
+        <button type="submit" class="btn btn-primary">افزودن</button>
+    </form>
+</div>
+
+{% else %}
+<!-- Needs Tab -->
+{% for item in needs %}
+<div class="need-card">
+    <div class="need-info">
+        <strong>{{ item.drug_name }}</strong> {% if item.drug_name_en %}<small>({{ item.drug_name_en }})</small>{% endif %}
+        <div class="need-detail">{{ item.drug_type or '' }} • {{ item.quantity }} {{ item.unit }} {% if item.notes %}• {{ item.notes }}{% endif %}</div>
+    </div>
+    <div class="need-actions">
+        <form method="POST" action="{{ url_for('need_purchased', item_id=item.id) }}" class="inline-form">
+            <button type="submit" class="btn btn-success btn-sm">✅ تهیه شد</button>
+        </form>
+        {% if current_user.is_admin %}
+        <form method="POST" action="{{ url_for('delete_need', item_id=item.id) }}" class="inline-form" onsubmit="return confirm('حذف؟');">
+            <button type="submit" class="btn btn-danger btn-xs">🗑️</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% else %}<div class="empty-state"><div class="empty-icon">✅</div><p>همه داروها تهیه شده</p></div>{% endfor %}
+
+<div class="card card-form" style="margin-top:24px;">
+    <h3>➕ افزودن به لیست نیاز</h3>
+    <form method="POST" action="{{ url_for('add_need') }}">
+        <div class="form-row">
+            <div class="form-group"><label>نام دارو</label><input type="text" name="drug_name" class="form-input drug-autocomplete" required></div>
+            <div class="form-group"><label>انگلیسی</label><input type="text" name="drug_name_en" class="form-input"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>نوع</label><select name="drug_type" class="form-input">{% for t in drug_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>مقدار</label><input type="number" name="quantity" step="0.1" class="form-input" value="1"></div>
+            <div class="form-group"><label>واحد</label><select name="unit" class="form-input">{% for u in drug_units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="form-group"><label>توضیحات</label><input type="text" name="notes" class="form-input"></div>
+        <button type="submit" class="btn btn-primary">افزودن</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block page_title %}حیوانات{% endblock %}
+{% block content %}
+<div class="tabs-bar">
+    <a href="{{ url_for('birds', tab='present') }}" class="tab {% if tab == 'present' %}active{% endif %}">🟢 حاضر</a>
+    <a href="{{ url_for('birds', tab='discharged') }}" class="tab {% if tab == 'discharged' %}active{% endif %}">✅ ترخیص</a>
+    <a href="{{ url_for('birds', tab='deceased') }}" class="tab {% if tab == 'deceased' %}active{% endif %}">⚫ تلفات</a>
+    <div class="tabs-spacer"></div>
+    <a href="{{ url_for('new_bird') }}" class="btn btn-primary btn-sm">➕ پذیرش جدید</a>
+</div>
+<div class="filter-bar">
+    <form method="GET" class="filter-form">
+        <input type="hidden" name="tab" value="{{ tab }}">
+        <input type="text" name="search" value="{{ search }}" class="form-input form-input-sm" placeholder="🔍 جستجو...">
+        <button type="submit" class="btn btn-secondary btn-sm">جستجو</button>
+    </form>
+    <span class="result-count">{{ birds|length }} کیس ({{ birds|map(attribute='quantity')|map('default',1)|sum }} حیوان)</span>
+</div>
+
+{% if tab == 'present' %}
+<div class="table-wrap">
+<table class="data-table">
+<thead><tr>
+<th>کد</th><th>نام</th><th>گونه</th><th>تعداد</th><th>منشا</th><th>جنسیت</th><th>وزن</th><th>بخش</th><th>وضعیت</th>
+<th>🩺 پرونده</th><th>💊 داروها</th><th>🧪 آزمایش</th><th>📝 نوت</th><th>✅ لاگ درمان</th>
+{% if current_user.is_admin %}<th>عملیات</th>{% endif %}
+</tr></thead>
+<tbody>
+{% for bird in birds %}
+{% set row_class = 'row-surgery-done' if bird.had_surgery else 'row-needs-surgery' if bird.needs_surgery else '' %}
+<tr class="{{ row_class }}" onclick="window.location='{{ url_for('bird_detail', bird_id=bird.id) }}'" style="cursor:pointer;">
+    <td><span class="badge badge-code">{{ bird.code }}</span></td>
+    <td>
+        <strong>{{ bird.name }}</strong>
+        {% if bird.had_surgery %}<br><span class="sub-tag sub-red">(جراحی شده)</span>{% endif %}
+        {% if bird.needs_surgery %}<br><span class="sub-tag sub-green">(نیاز به جراحی)</span>{% endif %}
+    </td>
+    <td>{{ bird.species.name if bird.species else '—' }}{% if bird.sub_category %} <small style="color:#888;">({{ bird.sub_category }})</small>{% endif %}</td>
+    <td><span class="badge badge-code" style="background:#e8f5ec;color:#2d6a4f;">{{ bird.quantity or 1 }}</span></td>
+    <td><small>{{ bird.origin or '—' }}</small></td>
+    <td>{{ bird.sex or '—' }}</td>
+    <td>{{ bird.weight or '—' }}</td>
+    <td>{{ bird.section or '—' }}</td>
+    <td>
+        {% if bird.treatment_status == 'تحت درمان فعال' %}<span class="status-dot green"></span>
+        {% elif bird.treatment_status == 'در انتظار آزمایش' %}<span class="status-dot yellow"></span>
+        {% elif bird.treatment_status == 'وخیم' %}<span class="status-dot red"></span>
+        {% else %}<span class="status-dot gray"></span>{% endif %}
+        {{ bird.treatment_status }}
+    </td>
+    <td onclick="event.stopPropagation();window.location='{{ url_for('bird_detail', bird_id=bird.id, tab='records') }}';" class="cell-link">{% set last_rec = bird.medical_records[0] if bird.medical_records else none %}{% if last_rec %}{{ last_rec.diagnosis or last_rec.complaint or '—' }}{% else %}—{% endif %}</td>
+    <td onclick="event.stopPropagation();window.location='{{ url_for('bird_detail', bird_id=bird.id, tab='meds') }}';" class="cell-link">{% set active_meds = bird.medications | selectattr('status','equalto','فعال') | list %}{% if active_meds %}{% for m in active_meds %}{{ m.drug }}{% if m.volume %} ({{ m.volume }}){% endif %}{% if not loop.last %}، {% endif %}{% endfor %}{% else %}—{% endif %}</td>
+    <td onclick="event.stopPropagation();window.location='{{ url_for('bird_detail', bird_id=bird.id, tab='labs') }}';" class="cell-link">{% set bird_labs = bird.labs[0] if bird.labs else none %}{% if bird_labs %}{{ bird_labs.test_type }}{% else %}—{% endif %}</td>
+    <td onclick="event.stopPropagation();window.location='{{ url_for('bird_detail', bird_id=bird.id, tab='notes') }}';" class="cell-link">{% set last_note = bird.notes[0] if bird.notes else none %}{% if last_note %}{{ last_note.content[:30] }}{% else %}—{% endif %}</td>
+    <td onclick="event.stopPropagation();">
+        {% set last_log = bird.treatment_logs[0] if bird.treatment_logs else none %}
+        {% set today = shamsi_now %}
+        {% if last_log and today in last_log.done_at %}
+            <span class="log-done">✅ {{ last_log.done_at }}</span>
+        {% else %}
+            <form method="POST" action="{{ url_for('treatment_tick', bird_id=bird.id) }}" class="inline-form">
+                <button type="submit" class="btn btn-primary btn-xs">ثبت</button>
+            </form>
+        {% endif %}
+    </td>
+    {% if current_user.is_admin %}
+    <td onclick="event.stopPropagation();">
+        <form method="POST" action="{{ url_for('delete_bird', bird_id=bird.id) }}" onsubmit="return confirm('آیا مطمئنی میخوای {{ bird.name }} (کد {{ bird.code }}) رو حذف کنی؟');">
+            <button type="submit" class="btn btn-danger btn-xs">🗑️</button>
+        </form>
+    </td>
+    {% endif %}
+</tr>
+{% else %}
+<tr><td colspan="15" class="empty-text">حیوانی وجود ندارد</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+{% else %}
+<!-- Discharged / Deceased: card view -->
+<div class="birds-grid">
+{% for bird in birds %}
+<div class="bird-card" onclick="window.location='{{ url_for('bird_detail', bird_id=bird.id) }}'">
+    <div class="bird-card-top">
+        <div class="bird-photo-placeholder">
+            {% if bird.species %}{% if bird.species.category == 'زینتی' %}🦜{% elif bird.species.category == 'شکاری' %}🦅{% elif bird.species.category == 'اهلی' %}🐓{% else %}🐾{% endif %}{% else %}🐾{% endif %}
+        </div>
+        <div class="bird-card-info"><div class="bird-name">{{ bird.name }}</div><div class="bird-species">{{ bird.species.name if bird.species else '' }}</div></div>
+        <span class="badge badge-code">{{ bird.code }}</span>
+        {% if (bird.quantity or 1) > 1 %}<span class="badge badge-code" style="background:#e8f5ec;color:#2d6a4f;margin-right:4px;">{{ bird.quantity }} عدد</span>{% endif %}
+    </div>
+    {% if tab == 'discharged' %}
+    <div class="bird-discharge-info">✅ {{ bird.discharge_date }} — {{ bird.discharge_reason or '' }}{% if (bird.quantity or 1) > 1 %} <strong>({{ bird.quantity }} عدد)</strong>{% endif %}</div>
+    {% elif tab == 'deceased' %}
+    <div class="bird-death-info">⚫ {{ bird.death_date }} — {{ bird.death_reason or '' }}{% if (bird.quantity or 1) > 1 %} <strong>({{ bird.quantity }} عدد)</strong>{% endif %}</div>
+    {% endif %}
+    {% if current_user.is_admin %}
+    <div style="padding:8px 16px;" onclick="event.stopPropagation();">
+        <form method="POST" action="{{ url_for('delete_bird', bird_id=bird.id) }}" onsubmit="return confirm('آیا مطمئنی؟');">
+            <button type="submit" class="btn btn-danger btn-xs">🗑️ حذف</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="empty-state"><div class="empty-icon">🐾</div><p>حیوانی وجود ندارد</p></div>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

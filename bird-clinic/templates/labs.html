@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block page_title %}آزمایشات{% endblock %}
+{% block content %}
+<button onclick="document.getElementById('addLabModal').style.display='flex'" class="btn btn-primary btn-sm" style="margin-bottom:16px;">➕ آزمایش جدید</button>
+<div class="table-wrap">
+<table class="data-table">
+<thead><tr><th>نوع</th><th>پرنده / نام</th><th>آزمایش</th><th>تاریخ</th><th>آزمایشگاه</th><th>نتیجه</th><th>تفسیر</th><th>فایل</th><th>عملیات</th></tr></thead>
+<tbody>
+{% for l in labs %}
+<tr class="{% if l.is_clinic %}row-clinic{% else %}row-external{% endif %}">
+    <td>{% if l.is_clinic %}<span class="badge badge-active">کلینیک</span>{% else %}<span class="badge badge-inactive">بیرونی</span>{% endif %}</td>
+    <td>{% if l.is_clinic and l.bird %}{{ l.bird.name }} ({{ l.bird.code }}){% else %}{{ l.external_name or '—' }}{% endif %}</td>
+    <td><strong>{{ l.test_type }}</strong></td>
+    <td>{{ l.date }}</td>
+    <td>{{ l.lab_name or '—' }}</td>
+    <td>{{ l.result or '—' }}</td>
+    <td>{{ l.interpretation or '—' }}</td>
+    <td>{% if l.file_path %}<a href="{{ url_for('static', filename='uploads/' ~ l.file_path) }}" target="_blank" class="btn btn-secondary btn-xs">📎</a>{% else %}—{% endif %}</td>
+    <td>
+        <button onclick="document.getElementById('editLab{{ l.id }}').style.display='flex'" class="btn btn-secondary btn-xs">✏️</button>
+        {% if current_user.is_admin %}<form method="POST" action="{{ url_for('delete_lab', lab_id=l.id) }}" class="inline-form" onsubmit="return confirm('حذف؟');"><button class="btn btn-danger btn-xs">🗑️</button></form>{% endif %}
+    </td>
+</tr>
+<div id="editLab{{ l.id }}" class="modal" style="display:none;"><div class="modal-content modal-scroll">
+<h3>✏️ ویرایش آزمایش</h3>
+<form method="POST" action="{{ url_for('edit_lab', lab_id=l.id) }}" enctype="multipart/form-data">
+    <div class="form-group"><label>نوع آزمایش</label><input type="text" name="test_type" value="{{ l.test_type }}" class="form-input"></div>
+    <div class="form-row"><div class="form-group"><label>تاریخ</label><input type="text" name="date" value="{{ l.date }}" class="form-input"></div><div class="form-group"><label>آزمایشگاه</label><input type="text" name="lab_name" value="{{ l.lab_name or '' }}" class="form-input"></div></div>
+    <div class="form-group"><label>نتیجه</label><textarea name="result" class="form-input" rows="2">{{ l.result or '' }}</textarea></div>
+    <div class="form-group"><label>تفسیر</label><textarea name="interpretation" class="form-input" rows="2">{{ l.interpretation or '' }}</textarea></div>
+    <div class="form-group"><label>فایل جدید</label><input type="file" name="file" accept="image/*,.pdf" class="form-input"></div>
+    <div class="modal-actions"><button type="submit" class="btn btn-primary">ذخیره</button><button type="button" class="btn btn-secondary" onclick="this.closest('.modal').style.display='none'">انصراف</button></div>
+</form></div></div>
+{% else %}<tr><td colspan="9" class="empty-text">آزمایشی ثبت نشده</td></tr>{% endfor %}
+</tbody>
+</table>
+</div>
+
+<div id="addLabModal" class="modal" style="display:none;">
+<div class="modal-content modal-lg modal-scroll">
+    <h3>➕ ثبت آزمایش جدید</h3>
+    <form method="POST" action="{{ url_for('add_lab_general') }}" enctype="multipart/form-data">
+        <div class="form-group"><label>نوع</label>
+            <select name="is_clinic" class="form-input" onchange="document.getElementById('labClinic').style.display=this.value=='true'?'block':'none';document.getElementById('labExt').style.display=this.value=='false'?'block':'none';">
+                <option value="true">پرنده کلینیک</option><option value="false">غیر کلینیک</option>
+            </select>
+        </div>
+        <div id="labClinic"><div class="form-group"><label>انتخاب پرنده</label><select name="bird_id" class="form-input"><option value="">انتخاب...</option>{% for b in all_birds %}<option value="{{ b.id }}">{{ b.code }} — {{ b.name }} ({{ b.status }})</option>{% endfor %}</select></div></div>
+        <div id="labExt" style="display:none;"><div class="form-group"><label>نام / توضیح</label><input type="text" name="external_name" class="form-input"></div><div class="form-group"><label>منشأ</label><select name="species_name" class="form-input">{% for o in origins %}<option value="{{ o }}">{{ o }}</option>{% endfor %}</select></div></div>
+        <div class="form-row">
+            <div class="form-group"><label>نوع آزمایش</label><input type="text" name="test_type" class="form-input" required placeholder="CBC, PCR, ..."></div>
+            <div class="form-group"><label>آزمایشگاه</label><input type="text" name="lab_name" class="form-input"></div>
+        </div>
+        <div class="form-group"><label>تاریخ</label><input type="text" name="date" value="{{ shamsi_now }}" class="form-input"></div>
+        <div class="form-group"><label>نتیجه</label><textarea name="result" class="form-input" rows="2"></textarea></div>
+        <div class="form-group"><label>تفسیر</label><textarea name="interpretation" class="form-input" rows="2"></textarea></div>
+        <div class="form-group"><label>آپلود فایل / عکس</label><input type="file" name="file" accept="image/*,.pdf" class="form-input"></div>
+        <div class="modal-actions">
+            <button type="submit" class="btn btn-primary">ثبت آزمایش</button>
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('addLabModal').style.display='none'">انصراف</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endblock %}

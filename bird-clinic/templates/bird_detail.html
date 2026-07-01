@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block page_title %}{{ bird.name }} — کد {{ bird.code }}{% endblock %}
+{% block content %}
+<a href="{{ url_for('birds') }}" class="back-link">→ بازگشت به لیست</a>
+<div class="bird-header">
+    <div class="bird-header-photo">
+        {% if bird.photo %}<img src="{{ url_for('static', filename='uploads/' + bird.photo) }}" alt="{{ bird.name }}">{% else %}<div class="photo-placeholder-lg">{% if bird.species %}{% if bird.species.category == 'زینتی' %}🦜{% elif bird.species.category == 'شکاری' %}🦅{% elif bird.species.category == 'اهلی' %}🐓{% else %}🐾{% endif %}{% else %}🐾{% endif %}</div>{% endif %}
+        {% if bird.status == 'حاضر' %}<form method="POST" action="{{ url_for('upload_bird_photo', bird_id=bird.id) }}" enctype="multipart/form-data" class="photo-upload-form"><label class="photo-upload-btn">📷<input type="file" name="photo" accept="image/*" onchange="this.form.submit()" hidden></label></form>{% endif %}
+    </div>
+    <div class="bird-header-info">
+        <div class="bird-header-top">
+            <h2>{{ bird.name }}</h2>
+            <span class="badge badge-code-lg">{{ bird.code }}</span>
+            {% if bird.treatment_status == 'تحت درمان فعال' %}<span class="status-dot green"></span>
+            {% elif bird.treatment_status == 'در انتظار آزمایش' %}<span class="status-dot yellow"></span>
+            {% elif bird.treatment_status == 'وخیم' %}<span class="status-dot red"></span>{% endif %}
+            <span style="font-size:12px;">{{ bird.treatment_status }}</span>
+        </div>
+        <div class="bird-header-meta">
+            <span>🧬 {{ bird.species.name if bird.species else '—' }}{% if bird.breed %} — {{ bird.breed }}{% endif %}</span>
+            <span>{{ bird.sex or '—' }} • {{ bird.age or '—' }}</span>
+            <span>⚖️ {{ bird.weight or '—' }} kg</span>
+            {% if (bird.quantity or 1) > 1 %}<span>🔢 {{ bird.quantity }} عدد</span>{% endif %}
+            <span>📍 {{ bird.section or '—' }}</span>
+            <span>📅 {{ bird.entry_date }}</span>
+        </div>
+        {% if bird.status == 'حاضر' %}
+        <form method="POST" action="{{ url_for('update_treatment_status', bird_id=bird.id) }}" class="status-form">
+            <select name="treatment_status" class="form-input form-input-sm" onchange="this.form.submit()">
+                <option value="بدون درمان" {% if bird.treatment_status == 'بدون درمان' %}selected{% endif %}>بدون درمان</option>
+                <option value="تحت درمان فعال" {% if bird.treatment_status == 'تحت درمان فعال' %}selected{% endif %}>🟢 تحت درمان فعال</option>
+                <option value="در انتظار آزمایش" {% if bird.treatment_status == 'در انتظار آزمایش' %}selected{% endif %}>🟡 در انتظار آزمایش</option>
+                <option value="وخیم" {% if bird.treatment_status == 'وخیم' %}selected{% endif %}>🔴 وخیم</option>
+            </select>
+        </form>
+        {% endif %}
+    </div>
+    {% if bird.status == 'حاضر' %}
+    <div class="bird-header-actions">
+        <a href="{{ url_for('edit_bird', bird_id=bird.id) }}" class="btn btn-secondary btn-sm">✏️ ویرایش</a>
+        <button onclick="document.getElementById('dischargeModal').style.display='flex'" class="btn btn-success btn-sm">✅ ترخیص</button>
+        <button onclick="document.getElementById('deathModal').style.display='flex'" class="btn btn-danger btn-sm">⚫ تلفات</button>
+    </div>
+    {% endif %}
+</div>
+
+<div class="tabs-bar">
+    <a href="?tab=info" class="tab {% if tab=='info' %}active{% endif %}">📋 اطلاعات</a>
+    <a href="?tab=records" class="tab {% if tab=='records' %}active{% endif %}">🩺 پرونده</a>
+    <a href="?tab=meds" class="tab {% if tab=='meds' %}active{% endif %}">💊 داروها</a>
+    <a href="?tab=vaccines" class="tab {% if tab=='vaccines' %}active{% endif %}">💉 واکسن</a>
+    <a href="?tab=labs" class="tab {% if tab=='labs' %}active{% endif %}">🧪 آزمایشات</a>
+    <a href="?tab=notes" class="tab {% if tab=='notes' %}active{% endif %}">📝 نوت‌ها</a>
+    <a href="?tab=treatment_log" class="tab {% if tab=='treatment_log' %}active{% endif %}">✅ لاگ درمان</a>
+</div>
+
+{% if tab == 'info' %}
+<div class="card"><div class="info-grid">
+{% for label, val in [('کد', bird.code), ('گونه', bird.species.name if bird.species else '—'), ('نژاد', bird.breed or '—'), ('جنسیت', bird.sex or '—'), ('سن', bird.age or '—'), ('وزن', (bird.weight or '—') ~ ' kg'), ('رینگ', bird.ring or '—'), ('بخش', bird.section or '—'), ('تاریخ ورود', bird.entry_date), ('منشأ', bird.origin or '—')] %}
+<div class="info-item"><div class="info-label">{{ label }}</div><div class="info-value">{{ val }}</div></div>
+{% endfor %}
+</div></div>
+{% endif %}
+
+{% if tab == 'records' %}
+{% if bird.status == 'حاضر' %}
+<div class="card card-form"><h3>🩺 ثبت ویزیت</h3>
+<form method="POST" action="{{ url_for('add_record', bird_id=bird.id) }}">
+    <div class="form-row"><div class="form-group"><label>تاریخ</label><input type="text" name="date" value="{{ shamsi_now }}" class="form-input"></div><div class="form-group"><label>نوع</label><select name="record_type" class="form-input"><option value="visit">ویزیت</option><option value="surgery">جراحی</option></select></div></div>
+    <div class="form-group"><label>شکایت</label><textarea name="complaint" class="form-input" rows="2"></textarea></div>
+    <div class="form-group"><label>معاینه</label><textarea name="exam" class="form-input" rows="2"></textarea></div>
+    <div class="form-group"><label>تشخیص</label><input type="text" name="diagnosis" class="form-input"></div>
+    <div class="form-group"><label>پلن</label><textarea name="plan" class="form-input" rows="2"></textarea></div>
+    <button type="submit" class="btn btn-primary">ثبت</button>
+</form></div>
+{% endif %}
+{% for r in bird.medical_records %}
+<div class="record-card"><div class="record-header"><span>{{ '🩺' if r.record_type=='visit' else '🔪' }} {{ r.vet.full_name if r.vet else '' }}</span><span class="record-date">{{ r.date }}</span></div>
+<div class="record-body">{% if r.complaint %}<div>شکایت: {{ r.complaint }}</div>{% endif %}{% if r.exam %}<div>معاینه: {{ r.exam }}</div>{% endif %}{% if r.diagnosis %}<div>تشخیص: <strong>{{ r.diagnosis }}</strong></div>{% endif %}{% if r.plan %}<div>پلن: {{ r.plan }}</div>{% endif %}</div>
+{% if current_user.is_admin %}<form method="POST" action="{{ url_for('delete_record', rec_id=r.id) }}" onsubmit="return confirm('حذف؟');"><button class="btn btn-danger btn-xs">🗑️</button></form>{% endif %}
+</div>{% else %}<div class="empty-state-sm">پرونده‌ای نیست</div>{% endfor %}
+{% endif %}
+
+{% if tab == 'meds' %}
+{% if bird.status == 'حاضر' %}
+<div class="card card-form"><h3>💊 ثبت دارو</h3>
+<form method="POST" action="{{ url_for('add_medication', bird_id=bird.id) }}" id="medForm">
+    <div id="drugRows">
+    <div class="drug-row" style="border:1px solid #eef3f0;border-radius:8px;padding:12px;margin-bottom:8px;">
+        <div class="form-row"><div class="form-group"><label>نام دارو</label><input type="text" name="drug" class="form-input drug-autocomplete" required></div><div class="form-group"><label>انگلیسی</label><input type="text" name="drug_en" class="form-input"></div></div>
+        <div class="form-row"><div class="form-group"><label>روش مصرف</label><select name="route" class="form-input"><option value="خوراکی">خوراکی</option><option value="تزریقی">تزریقی</option><option value="موضعی">موضعی</option><option value="چشمی">چشمی</option><option value="استنشاقی">استنشاقی</option></select></div><div class="form-group"><label>تاریخ شروع</label><input type="text" name="start_date" value="{{ shamsi_now }}" class="form-input"></div></div>
+        <div class="form-group"><label>حجم</label><div style="display:flex;align-items:center;gap:8px;"><input type="text" name="volume" class="form-input" style="width:120px;" placeholder="مثلاً 0.5"><span style="font-size:13px;color:#888;background:#f4f7f5;padding:6px 12px;border-radius:8px;">ml/kg</span></div><small style="color:#9ab0a0;">خالی بگذارید اگر پماد یا قرص است</small></div>
+    </div>
+    </div>
+    <button type="button" onclick="addDrugRow()" class="btn btn-secondary btn-sm" style="margin-bottom:12px;">➕ افزودن داروی دیگر</button>
+    <br><button type="submit" class="btn btn-primary">ثبت دارو</button>
+</form>
+<script>
+function addDrugRow(){
+    var rows=document.getElementById('drugRows');
+    var first=rows.querySelector('.drug-row');
+    var clone=first.cloneNode(true);
+    clone.querySelectorAll('input[type=text]').forEach(function(i){if(i.name!='start_date')i.value='';});
+    clone.querySelectorAll('.drug-autocomplete').forEach(function(inp){
+        inp.removeAttribute('data-ac-init');
+        // Remove old wrapper if exists
+        var oldWrap = inp.parentNode;
+        if(oldWrap.style.position==='relative' && oldWrap.children.length>1){
+            oldWrap.parentNode.insertBefore(inp, oldWrap);
+            oldWrap.remove();
+        }
+    });
+    rows.appendChild(clone);
+    clone.querySelectorAll('.drug-autocomplete').forEach(function(inp){initAutocomplete(inp);});
+}
+</script>
+</div>
+{% set active_meds = bird.medications | selectattr('status','equalto','فعال') | list %}
+{% if active_meds and bird.status == 'حاضر' %}
+<div class="card treatment-tick-card"><h3>✅ ثبت سریع درمان</h3>
+<form method="POST" action="{{ url_for('treatment_tick', bird_id=bird.id) }}" id="bulkTickForm">
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button type="button" onclick="toggleAllMeds()" class="btn btn-secondary btn-sm" id="selectAllBtn">☑️ انتخاب همه</button>
+        <input type="text" name="notes" class="form-input form-input-sm" placeholder="توضیح (برای همه)">
+    </div>
+    {% for m in active_meds %}
+    <div class="tick-row" style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;background:#f8fdf9;margin-bottom:6px;">
+        <input type="checkbox" name="medication_id" value="{{ m.id }}" id="med_{{ m.id }}" class="med-checkbox" style="width:18px;height:18px;cursor:pointer;">
+        <label for="med_{{ m.id }}" style="flex:1;cursor:pointer;">
+            <div class="tick-info"><strong>{{ m.drug }}{% if m.drug_en %} — {{ m.drug_en }}{% endif %}{% if m.volume %} <span style="color:#3b82f6;">({{ m.volume }} ml/kg)</span>{% endif %}</strong><span class="tick-detail" style="display:block;font-size:12px;color:#888;">{{ m.route }} — {{ m.start_date }}</span></div>
+        </label>
+    </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-success btn-sm" style="margin-top:8px;">✅ ثبت انتخاب‌شده‌ها</button>
+</form>
+<script>
+var allSelected = false;
+function toggleAllMeds(){
+    allSelected = !allSelected;
+    document.querySelectorAll('.med-checkbox').forEach(function(cb){ cb.checked = allSelected; });
+    document.getElementById('selectAllBtn').textContent = allSelected ? '☐ لغو انتخاب' : '☑️ انتخاب همه';
+}
+</script>
+</div>
+{% endif %}
+{% endif %}
+{% for m in bird.medications %}
+<div class="med-card"><div class="med-card-header"><span>💊 {{ m.drug }}{% if m.drug_en %} — {{ m.drug_en }}{% endif %}{% if m.volume %} <span style="color:#3b82f6;">({{ m.volume }} ml/kg)</span>{% endif %}</span><div><span class="badge badge-{{ m.route }}">{{ m.route }}</span> <span class="badge {% if m.status=='فعال' %}badge-active{% else %}badge-inactive{% endif %}">{{ m.status }}</span></div></div>
+<div class="med-card-body"><span>شروع: {{ m.start_date or '—' }}</span></div>
+{% if m.status == 'فعال' %}<form method="POST" action="{{ url_for('complete_medication', med_id=m.id) }}" class="inline-form"><button class="btn btn-secondary btn-xs">تکمیل دوره</button></form>{% endif %}
+<button onclick="document.getElementById('editMed{{ m.id }}').style.display='flex'" class="btn btn-secondary btn-xs">✏️ ویرایش</button>
+{% if current_user.is_admin %}<form method="POST" action="{{ url_for('delete_medication', med_id=m.id) }}" class="inline-form" onsubmit="return confirm('حذف؟');"><button class="btn btn-danger btn-xs">🗑️</button></form>{% endif %}
+<div class="med-card-vet">{{ m.vet.full_name if m.vet else '' }} • {{ m.created_at }}</div>
+</div>
+<div id="editMed{{ m.id }}" class="modal" style="display:none;"><div class="modal-content">
+<h3>✏️ ویرایش دارو</h3>
+<form method="POST" action="{{ url_for('edit_medication', med_id=m.id) }}">
+    <div class="form-group"><label>نام دارو</label><input type="text" name="drug" value="{{ m.drug }}" class="form-input"></div>
+    <div class="form-group"><label>انگلیسی</label><input type="text" name="drug_en" value="{{ m.drug_en or '' }}" class="form-input"></div>
+    <div class="form-row"><div class="form-group"><label>روش</label><select name="route" class="form-input"><option value="خوراکی" {% if m.route=='خوراکی' %}selected{% endif %}>خوراکی</option><option value="تزریقی" {% if m.route=='تزریقی' %}selected{% endif %}>تزریقی</option><option value="موضعی" {% if m.route=='موضعی' %}selected{% endif %}>موضعی</option><option value="چشمی" {% if m.route=='چشمی' %}selected{% endif %}>چشمی</option><option value="استنشاقی" {% if m.route=='استنشاقی' %}selected{% endif %}>استنشاقی</option></select></div><div class="form-group"><label>شروع</label><input type="text" name="start_date" value="{{ m.start_date or '' }}" class="form-input"></div></div>
+    <div class="form-group"><label>حجم</label><div style="display:flex;align-items:center;gap:8px;"><input type="text" name="volume" value="{{ m.volume or '' }}" class="form-input" style="width:120px;"><span style="font-size:13px;color:#888;">ml/kg</span></div></div>
+    <div class="modal-actions"><button type="submit" class="btn btn-primary">ذخیره</button><button type="button" class="btn btn-secondary" onclick="this.closest('.modal').style.display='none'">انصراف</button></div>
+</form></div></div>{% else %}<div class="empty-state-sm">دارویی نیست</div>{% endfor %}
+{% endif %}
+
+{% if tab == 'vaccines' %}
+{% if bird.status == 'حاضر' %}
+<div class="card card-form"><h3>💉 ثبت واکسن</h3>
+<form method="POST" action="{{ url_for('add_vaccine', bird_id=bird.id) }}">
+    <div class="form-row"><div class="form-group"><label>نام واکسن</label><input type="text" name="vaccine_name" class="form-input" required></div><div class="form-group"><label>سریال</label><input type="text" name="serial" class="form-input"></div></div>
+    <div class="form-row"><div class="form-group"><label>تاریخ تزریق</label><div class="date-fields"><input type="text" name="date_y" class="form-input form-input-sm" placeholder="سال" maxlength="4"><span>/</span><input type="text" name="date_m" class="form-input form-input-sm" placeholder="ماه" maxlength="2"><span>/</span><input type="text" name="date_d" class="form-input form-input-sm" placeholder="روز" maxlength="2"></div></div>
+    <div class="form-group"><label>مراجعه بعدی</label><div class="date-fields"><input type="text" name="next_y" class="form-input form-input-sm" placeholder="سال" maxlength="4"><span>/</span><input type="text" name="next_m" class="form-input form-input-sm" placeholder="ماه" maxlength="2"><span>/</span><input type="text" name="next_d" class="form-input form-input-sm" placeholder="روز" maxlength="2"></div></div></div>
+    <div class="form-group"><label>توضیحات</label><input type="text" name="description" class="form-input"></div>
+    <button type="submit" class="btn btn-primary">ثبت</button>
+</form></div>
+{% endif %}
+{% set pending_v = bird.vaccines | selectattr('is_done', 'equalto', False) | list %}
+{% set done_v = bird.vaccines | selectattr('is_done', 'equalto', True) | list %}
+{% if pending_v %}
+<h4 style="margin:12px 0 8px;color:#374151;">💉 در انتظار</h4>
+{% for v in pending_v %}
+<div class="record-card"><div class="record-header"><span>💉 {{ v.vaccine_name }}</span><span class="record-date">{{ v.date }}</span></div>
+<div class="record-body"><span>یادآور: {{ v.next_date or '—' }}</span> <span>سریال: {{ v.serial or '—' }}</span> <span>{{ v.vet.full_name if v.vet else '' }}</span>{% if v.description %} <span>{{ v.description }}</span>{% endif %}</div>
+<div style="padding:4px 0;">
+    <form method="POST" action="{{ url_for('mark_vaccine_done', v_id=v.id) }}" class="inline-form"><button class="btn btn-success btn-xs">✅ انجام شد</button></form>
+    {% if current_user.is_admin %}<form method="POST" action="{{ url_for('delete_vaccine', v_id=v.id) }}" onsubmit="return confirm('حذف؟');" class="inline-form"><button class="btn btn-danger btn-xs">🗑️</button></form>{% endif %}
+</div>
+</div>{% endfor %}
+{% endif %}
+{% if done_v %}
+<h4 style="margin:12px 0 8px;color:#16a34a;">✅ انجام شده</h4>
+{% for v in done_v %}
+<div class="record-card" style="background:#f0fdf4;border-right:3px solid #16a34a;"><div class="record-header"><span>✅ {{ v.vaccine_name }}</span><span class="record-date">{{ v.last_injection_date or v.date }}</span></div>
+<div class="record-body"><span>تاریخ آخرین تزریق: <strong style="color:#16a34a;">{{ v.last_injection_date or v.date }}</strong></span> <span>سریال: {{ v.serial or '—' }}</span> <span>{{ v.vet.full_name if v.vet else '' }}</span>{% if v.description %} <span>{{ v.description }}</span>{% endif %}</div>
+{% if current_user.is_admin %}<form method="POST" action="{{ url_for('delete_vaccine', v_id=v.id) }}" onsubmit="return confirm('حذف؟');" class="inline-form"><button class="btn btn-danger btn-xs">🗑️</button></form>{% endif %}
+</div>{% endfor %}
+{% endif %}
+{% if not pending_v and not done_v %}<div class="empty-state-sm">واکسنی نیست</div>{% endif %}
+{% endif %}
+
+{% if tab == 'labs' %}
+{% if bird.status == 'حاضر' %}
+<div class="card card-form"><h3>🧪 ثبت آزمایش</h3>
+<form method="POST" action="{{ url_for('add_lab', bird_id=bird.id) }}" enctype="multipart/form-data">
+    <div class="form-row"><div class="form-group"><label>نوع</label><input type="text" name="test_type" class="form-input" required></div><div class="form-group"><label>آزمایشگاه</label><input type="text" name="lab_name" class="form-input"></div></div>
+    <div class="form-group"><label>تاریخ</label><input type="text" name="date" value="{{ shamsi_now }}" class="form-input"></div>
+    <div class="form-group"><label>نتیجه</label><textarea name="result" class="form-input" rows="2"></textarea></div>
+    <div class="form-group"><label>تفسیر</label><textarea name="interpretation" class="form-input" rows="2"></textarea></div>
+    <div class="form-group"><label>فایل</label><input type="file" name="file" accept="image/*,.pdf" class="form-input"></div>
+    <button type="submit" class="btn btn-primary">ثبت</button>
+</form></div>
+{% endif %}
+{% for l in bird.labs %}
+<div class="record-card record-lab"><div class="record-header"><span>🧪 {{ l.test_type }}</span><span class="record-date">{{ l.date }}</span></div>
+<div class="record-body"><div>نتیجه: {{ l.result or '—' }}</div><div>تفسیر: <strong>{{ l.interpretation or '—' }}</strong></div>{% if l.file_path %}<div><a href="{{ url_for('static', filename='uploads/' ~ l.file_path) }}" target="_blank">📎 فایل</a></div>{% endif %}<div class="record-meta">{{ l.lab_name or '' }} • {{ l.vet.full_name if l.vet else '' }}</div></div>
+{% if current_user.is_admin %}<form method="POST" action="{{ url_for('delete_lab', lab_id=l.id) }}" onsubmit="return confirm('حذف؟');"><button class="btn btn-danger btn-xs">🗑️</button></form>{% endif %}
+</div>{% else %}<div class="empty-state-sm">آزمایشی نیست</div>{% endfor %}
+{% endif %}
+
+{% if tab == 'notes' %}
+{% if bird.status == 'حاضر' %}
+<div class="card card-form"><h3>📝 نوت</h3><form method="POST" action="{{ url_for('add_note', bird_id=bird.id) }}"><div class="form-group"><textarea name="content" class="form-input" rows="3" required placeholder="نوت..."></textarea></div><button type="submit" class="btn btn-primary">ثبت</button></form></div>
+{% endif %}
+{% for n in bird.notes %}
+<div class="note-card"><div class="note-card-header"><strong>{{ n.vet.full_name if n.vet else '' }}</strong><span class="note-card-date">{{ n.created_at }}</span></div><div class="note-card-body">{{ n.content }}</div>
+{% if current_user.is_admin %}<form method="POST" action="{{ url_for('delete_note', note_id=n.id) }}" onsubmit="return confirm('حذف؟');"><button class="btn btn-danger btn-xs">🗑️</button></form>{% endif %}
+</div>{% else %}<div class="empty-state-sm">نوتی نیست</div>{% endfor %}
+{% endif %}
+
+{% if tab == 'treatment_log' %}
+{% for t in bird.treatment_logs %}
+<div class="record-card"><div class="record-header"><span>✅ {{ t.medication.drug if t.medication else 'درمان' }}</span><span class="record-date">{{ t.done_at }}</span></div>
+<div class="record-body"><span>{{ t.vet.full_name if t.vet else '' }}</span>{% if t.notes %} <span>— {{ t.notes }}</span>{% endif %}</div></div>
+{% else %}<div class="empty-state-sm">لاگی نیست</div>{% endfor %}
+{% endif %}
+
+{% if bird.status == 'حاضر' %}
+<div id="dischargeModal" class="modal" style="display:none;"><div class="modal-content"><h3>✅ ترخیص {{ bird.name }}</h3><form method="POST" action="{{ url_for('discharge_bird', bird_id=bird.id) }}">
+    {% if (bird.quantity or 1) > 1 %}
+    <div class="form-group"><label>تعداد ترخیص (از {{ bird.quantity }} عدد)</label><input type="number" name="transfer_count" value="{{ bird.quantity }}" min="1" max="{{ bird.quantity }}" class="form-input" required></div>
+    {% endif %}
+    <div class="form-group"><label>توضیح</label><textarea name="reason" class="form-input" rows="3" required></textarea></div><div class="modal-actions"><button type="submit" class="btn btn-success">تأیید</button><button type="button" class="btn btn-secondary" onclick="this.closest('.modal').style.display='none'">انصراف</button></div></form></div></div>
+<div id="deathModal" class="modal" style="display:none;"><div class="modal-content"><h3>⚫ تلفات {{ bird.name }}</h3><form method="POST" action="{{ url_for('death_bird', bird_id=bird.id) }}">
+    {% if (bird.quantity or 1) > 1 %}
+    <div class="form-group"><label>تعداد تلفات (از {{ bird.quantity }} عدد)</label><input type="number" name="transfer_count" value="1" min="1" max="{{ bird.quantity }}" class="form-input" required></div>
+    {% endif %}
+    <div class="form-group"><label>علت</label><textarea name="reason" class="form-input" rows="3" required></textarea></div><div class="modal-actions"><button type="submit" class="btn btn-danger">تأیید</button><button type="button" class="btn btn-secondary" onclick="this.closest('.modal').style.display='none'">انصراف</button></div></form></div></div>
+{% endif %}
+{% endblock %}

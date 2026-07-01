@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}سامانه دامپزشکی باغ پرندگان{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/lucide-static@latest/font/lucide.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-icon" id="clinic-logo">🦚</div>
+                <div class="logo-text">کلینیک باغ پرندگان تهران</div>
+                <div class="logo-sub">سامانه دامپزشکی</div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                    <span class="nav-icon">📊</span> داشبورد
+                </a>
+                <a href="{{ url_for('birds') }}" class="nav-link {% if request.endpoint in ['birds','bird_detail','new_bird','edit_bird'] %}active{% endif %}">
+                    <span class="nav-icon">🐾</span> حیوانات
+                </a>
+                <a href="{{ url_for('surgery') }}" class="nav-link {% if request.endpoint == 'surgery' %}active{% endif %}">
+                    <span class="nav-icon">🔪</span> جراحی
+                </a>
+                <a href="{{ url_for('medications') }}" class="nav-link {% if request.endpoint == 'medications' %}active{% endif %}">
+                    <span class="nav-icon">💊</span> داروها
+                </a>
+                <a href="{{ url_for('vaccines') }}" class="nav-link {% if request.endpoint == 'vaccines' %}active{% endif %}">
+                    <span class="nav-icon">💉</span> واکسیناسیون
+                </a>
+                <a href="{{ url_for('labs') }}" class="nav-link {% if request.endpoint == 'labs' %}active{% endif %}">
+                    <span class="nav-icon">🧪</span> آزمایشات
+                </a>
+                <a href="{{ url_for('reports') }}" class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}">
+                    <span class="nav-icon">📋</span> گزارشات
+                </a>
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('admin_panel') }}" class="nav-link {% if request.endpoint == 'admin_panel' %}active{% endif %}">
+                    <span class="nav-icon">⚙️</span> پنل ادمین
+                </a>
+                {% endif %}
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <span class="user-avatar">👤</span>
+                    <div>
+                        <div class="user-name">{{ current_user.full_name }}</div>
+                        <div class="user-role">{{ 'ادمین' if current_user.is_admin else 'دامپزشک' }}</div>
+                    </div>
+                </div>
+                <a href="{{ url_for('logout') }}" class="logout-btn">خروج</a>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="topbar">
+                <h1 class="page-title">{% block page_title %}داشبورد{% endblock %}</h1>
+                <div class="topbar-actions">
+                    <a href="{{ url_for('notifications') }}" class="notif-btn">
+                        🔔
+                        {% if unread_count > 0 %}
+                        <span class="notif-badge">{{ unread_count }}</span>
+                        {% endif %}
+                    </a>
+                    <span class="today-date">📅 {{ shamsi_now }} — 🕐 <span id="iranClock">{{ shamsi_time }}</span></span>
+                </div>
+            </header>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">
+                    {{ message }}
+                    <button class="flash-close" onclick="this.parentElement.remove()">✕</button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <!-- Page Content -->
+            <div class="page-content">
+                {% block content %}{% endblock %}
+            </div>
+
+            <!-- Footer -->
+            <footer class="app-footer">
+                ساخته شده توسط دکتر مهدیار رمزگویان
+            </footer>
+        </main>
+    </div>
+    {% block scripts %}{% endblock %}
+    <script>
+    function initAutocomplete(input){
+        if(input.dataset.acInit) return;
+        input.dataset.acInit='1';
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'position:relative;';
+        input.parentNode.insertBefore(wrap, input);
+        wrap.appendChild(input);
+        var list = document.createElement('div');
+        list.style.cssText = 'position:absolute;top:100%;right:0;left:0;background:#fff;border:1px solid #dce8df;border-radius:8px;max-height:200px;overflow-y:auto;z-index:999;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.1);';
+        wrap.appendChild(list);
+        input.addEventListener('input', function(){
+            var q = this.value.trim();
+            if(q.length < 1){list.style.display='none';return;}
+            fetch('/api/drugs?q='+encodeURIComponent(q)).then(r=>r.json()).then(function(data){
+                list.innerHTML='';
+                if(data.drugs.length===0){list.style.display='none';return;}
+                data.drugs.forEach(function(d){
+                    var item = document.createElement('div');
+                    item.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #eee;';
+                    item.innerHTML = '<strong>'+d.fa+'</strong> <small style="color:#888;">'+d.en+' — '+d.type+'</small>';
+                    item.addEventListener('click', function(){
+                        input.value = d.fa;
+                        var enField = input.closest('.drug-row,.form-row,.card-form,form').querySelector('[name="drug_en"],[name="drug_name_en"]');
+                        if(enField) enField.value = d.en;
+                        list.style.display='none';
+                    });
+                    item.addEventListener('mouseenter',function(){this.style.background='#e8f5ec';});
+                    item.addEventListener('mouseleave',function(){this.style.background='#fff';});
+                    list.appendChild(item);
+                });
+                list.style.display='block';
+            });
+        });
+        document.addEventListener('click',function(e){if(!wrap.contains(e.target))list.style.display='none';});
+    }
+    document.querySelectorAll('.drug-autocomplete').forEach(initAutocomplete);
+    setInterval(function(){
+        var now=new Date();
+        var iran=new Date(now.getTime()+(3.5*60*60*1000)+(now.getTimezoneOffset()*60*1000));
+        var h=String(iran.getHours()).padStart(2,'0');
+        var m=String(iran.getMinutes()).padStart(2,'0');
+        var el=document.getElementById('iranClock');
+        if(el) el.textContent=h+':'+m;
+    },30000);
+    </script>
+</body>
+</html>

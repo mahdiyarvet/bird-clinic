@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block page_title %}داشبورد{% endblock %}
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card stat-ornamental"><div class="stat-icon">🦜</div><div class="stat-info"><div class="stat-value">{{ ornamental }}</div><div class="stat-label">زینتی</div></div></div>
+    <div class="stat-card stat-hunter"><div class="stat-icon">🦅</div><div class="stat-info"><div class="stat-value">{{ hunters }}</div><div class="stat-label">شکاری</div></div></div>
+    <div class="stat-card stat-domestic"><div class="stat-icon">🐓</div><div class="stat-info"><div class="stat-value">{{ domestic }}</div><div class="stat-label">اهلی</div></div></div>
+    <div class="stat-card stat-other"><div class="stat-icon">🐾</div><div class="stat-info"><div class="stat-value">{{ others }}</div><div class="stat-label">سایر</div></div></div>
+</div>
+{% if surgery_count > 0 %}
+<div class="alert alert-surgery">🔪 <strong>{{ surgery_count }} حیوان</strong> نیاز به جراحی — <a href="{{ url_for('surgery') }}">مشاهده</a></div>
+{% endif %}
+{% if low_stock %}
+<div class="alert alert-danger-box">⚠️ <strong>داروهای رو به اتمام:</strong> {% for item in low_stock %}{{ item.drug_name }} ({{ item.quantity }} {{ item.unit }}){{ '، ' if not loop.last }}{% endfor %} — <a href="{{ url_for('medications') }}">برای شارژ اقدام کنید</a></div>
+{% endif %}
+{% if need_items %}
+<div class="alert alert-danger-box">🛒 <strong>{{ need_items|length }} قلم نیاز به تهیه:</strong> {% for item in need_items %}{{ item.drug_name }}{{ '، ' if not loop.last }}{% endfor %} — <a href="{{ url_for('medications') }}">مشاهده لیست</a></div>
+{% endif %}
+{% if upcoming_vaccines %}
+<div class="alert alert-vaccine">💉 <strong>{{ upcoming_vaccines|length }} واکسن</strong> در انتظار — {% for v in upcoming_vaccines %}{{ v.vaccine_name }} ({{ v.next_date }}){{ '، ' if not loop.last }}{% endfor %}</div>
+{% endif %}
+{% if upcoming_surgeries %}
+<div class="alert alert-surgery">🔪 پیگیری جراحی: {% for s in upcoming_surgeries %}{{ s.bird.name }} ({{ s.follow_up_date }}){{ '، ' if not loop.last }}{% endfor %}</div>
+{% endif %}
+<div class="dashboard-grid">
+    <div class="card"><div class="card-header"><h3>📊 توزیع گونه‌ها</h3></div><div class="card-body">
+        {% for name, count in species_counts %}
+        <div class="bar-row"><div class="bar-label"><span>{{ name }}</span><span class="bar-count">{{ count }}</span></div><div class="bar-track"><div class="bar-fill" style="width:{{ (count/total*100) if total > 0 else 0 }}%"></div></div></div>
+        {% endfor %}
+    </div></div>
+    <div class="card"><div class="card-header"><h3>📍 توزیع بر اساس منشا</h3></div><div class="card-body">
+        {% for origin, data in origin_counts %}
+        <div class="bar-row">
+            <div class="bar-label">
+                <span>{{ origin or 'نامشخص' }}</span>
+                <span class="bar-count">{{ data.total }} ({{ data.cases }} کیس)</span>
+            </div>
+            <div class="bar-track"><div class="bar-fill" style="width:{{ (data.total/max_origin*100) if max_origin > 0 else 0 }}%;background:#3b82f6;"></div></div>
+        </div>
+        {% else %}<p class="empty-text">اطلاعاتی ثبت نشده</p>{% endfor %}
+    </div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block page_title %}واکسیناسیون{% endblock %}
+{% block content %}
+<button onclick="document.getElementById('addVaxModal').style.display='flex'" class="btn btn-primary btn-sm" style="margin-bottom:16px;">➕ واکسن جدید</button>
+
+{% set pending_vax = vaccines | selectattr('is_done', 'equalto', False) | list %}
+{% set done_vax = vaccines | selectattr('is_done', 'equalto', True) | list %}
+
+<div class="card" style="margin-bottom:16px;">
+<div class="card-header"><h3>💉 در انتظار ({{ pending_vax|length }})</h3></div>
+<div class="table-wrap">
+<table class="data-table">
+<thead><tr><th>نوع</th><th>پرنده / نام</th><th>گونه</th><th>واکسن</th><th>تاریخ تزریق</th><th>مراجعه بعدی</th><th>دامپزشک</th><th>توضیحات</th><th>عملیات</th></tr></thead>
+<tbody>
+{% for v in pending_vax %}
+<tr>
+    <td>{% if v.is_clinic %}<span class="badge badge-active">کلینیک</span>{% else %}<span class="badge badge-inactive">بیرونی</span>{% endif %}</td>
+    <td>{% if v.is_clinic and v.bird %}{{ v.bird.name }} ({{ v.bird.code }}){% else %}{{ v.external_name or '—' }}{% endif %}</td>
+    <td>{{ v.species_name or (v.bird.species.name if v.is_clinic and v.bird and v.bird.species else '—') }}</td>
+    <td><strong>{{ v.vaccine_name }}</strong></td>
+    <td>{{ v.date }}</td>
+    <td>{{ v.next_date or '—' }}</td>
+    <td>{{ v.vet.full_name if v.vet else '' }}</td>
+    <td><small>{{ v.description or '—' }}</small></td>
+    <td>
+        <form method="POST" action="{{ url_for('mark_vaccine_done', v_id=v.id) }}" class="inline-form">
+            <button class="btn btn-success btn-xs">✅ انجام شد</button>
+        </form>
+        <button onclick="document.getElementById('editVax{{ v.id }}').style.display='flex'" class="btn btn-secondary btn-xs">✏️</button>
+        {% if current_user.is_admin %}<form method="POST" action="{{ url_for('delete_vaccine', v_id=v.id) }}" class="inline-form" onsubmit="return confirm('حذف؟');"><button class="btn btn-danger btn-xs">🗑️</button></form>{% endif %}
+    </td>
+</tr>
+<div id="editVax{{ v.id }}" class="modal" style="display:none;"><div class="modal-content">
+<h3>✏️ ویرایش واکسن</h3>
+<form method="POST" action="{{ url_for('edit_vaccine', v_id=v.id) }}">
+    <div class="form-group"><label>واکسن</label><input type="text" name="vaccine_name" value="{{ v.vaccine_name }}" class="form-input"></div>
+    <div class="form-group"><label>گونه</label><input type="text" name="species_name" value="{{ v.species_name or '' }}" class="form-input"></div>
+    <div class="form-row"><div class="form-group"><label>تاریخ</label><input type="text" name="date" value="{{ v.date }}" class="form-input"></div><div class="form-group"><label>مراجعه بعدی</label><input type="text" name="next_date" value="{{ v.next_date or '' }}" class="form-input"></div></div>
+    <div class="form-row"><div class="form-group"><label>سریال</label><input type="text" name="serial" value="{{ v.serial or '' }}" class="form-input"></div><div class="form-group"><label>توضیحات</label><input type="text" name="description" value="{{ v.description or '' }}" class="form-input"></div></div>
+    <div class="modal-actions"><button type="submit" class="btn btn-primary">ذخیره</button><button type="button" class="btn btn-secondary" onclick="this.closest('.modal').style.display='none'">انصراف</button></div>
+</form></div></div>
+{% else %}<tr><td colspan="9" class="empty-text">واکسن در انتظاری وجود ندارد</td></tr>{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+
+<div class="card">
+<div class="card-header"><h3>✅ واکسیناسیون‌های انجام شده ({{ done_vax|length }})</h3></div>
+<div class="table-wrap">
+<table class="data-table">
+<thead><tr><th>نوع</th><th>پرنده / نام</th><th>گونه</th><th>واکسن</th><th>تاریخ اولیه</th><th>تاریخ آخرین تزریق</th><th>دامپزشک</th><th>عملیات</th></tr></thead>
+<tbody>
+{% for v in done_vax %}
+<tr style="background:#f0fdf4;">
+    <td>{% if v.is_clinic %}<span class="badge badge-active">کلینیک</span>{% else %}<span class="badge badge-inactive">بیرونی</span>{% endif %}</td>
+    <td>{% if v.is_clinic and v.bird %}{{ v.bird.name }} ({{ v.bird.code }}){% else %}{{ v.external_name or '—' }}{% endif %}</td>
+    <td>{{ v.species_name or (v.bird.species.name if v.is_clinic and v.bird and v.bird.species else '—') }}</td>
+    <td><strong>{{ v.vaccine_name }}</strong></td>
+    <td>{{ v.date }}</td>
+    <td><strong style="color:#16a34a;">{{ v.last_injection_date or v.date }}</strong></td>
+    <td>{{ v.vet.full_name if v.vet else '' }}</td>
+    <td>
+        <button onclick="document.getElementById('editVaxDone{{ v.id }}').style.display='flex'" class="btn btn-secondary btn-xs">✏️</button>
+        {% if current_user.is_admin %}<form method="POST" action="{{ url_for('delete_vaccine', v_id=v.id) }}" class="inline-form" onsubmit="return confirm('حذف؟');"><button class="btn btn-danger btn-xs">🗑️</button></form>{% endif %}
+    </td>
+</tr>
+<div id="editVaxDone{{ v.id }}" class="modal" style="display:none;"><div class="modal-content">
+<h3>✏️ ویرایش واکسن</h3>
+<form method="POST" action="{{ url_for('edit_vaccine', v_id=v.id) }}">
+    <div class="form-group"><label>واکسن</label><input type="text" name="vaccine_name" value="{{ v.vaccine_name }}" class="form-input"></div>
+    <div class="form-group"><label>گونه</label><input type="text" name="species_name" value="{{ v.species_name or '' }}" class="form-input"></div>
+    <div class="form-row"><div class="form-group"><label>تاریخ</label><input type="text" name="date" value="{{ v.date }}" class="form-input"></div><div class="form-group"><label>مراجعه بعدی</label><input type="text" name="next_date" value="{{ v.next_date or '' }}" class="form-input"></div></div>
+    <div class="form-row"><div class="form-group"><label>سریال</label><input type="text" name="serial" value="{{ v.serial or '' }}" class="form-input"></div><div class="form-group"><label>توضیحات</label><input type="text" name="description" value="{{ v.description or '' }}" class="form-input"></div></div>
+    <div class="modal-actions"><button type="submit" class="btn btn-primary">ذخیره</button><button type="button" class="btn btn-secondary" onclick="this.closest('.modal').style.display='none'">انصراف</button></div>
+</form></div></div>
+{% else %}<tr><td colspan="8" class="empty-text">واکسن انجام شده‌ای وجود ندارد</td></tr>{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+
+<!-- Add Modal -->
+<div id="addVaxModal" class="modal" style="display:none;">
+<div class="modal-content modal-lg">
+    <h3>➕ ثبت واکسن جدید</h3>
+    <form method="POST" action="{{ url_for('add_vaccine_general') }}">
+        <div class="form-group"><label>نوع</label>
+            <select name="is_clinic" class="form-input" id="vaxType" onchange="document.getElementById('vaxClinic').style.display=this.value=='true'?'block':'none';document.getElementById('vaxExt').style.display=this.value=='false'?'block':'none';">
+                <option value="true">پرنده کلینیک</option><option value="false">بیرونی</option>
+            </select>
+        </div>
+        <div id="vaxClinic"><div class="form-group"><label>انتخاب حیوان</label><select name="bird_id" class="form-input"><option value="">انتخاب...</option>{% for b in all_birds %}<option value="{{ b.id }}">{{ b.code }} — {{ b.name }}</option>{% endfor %}</select></div></div>
+        <div id="vaxExt" style="display:none;"><div class="form-group"><label>نام حیوان / توضیح</label><input type="text" name="external_name" class="form-input"></div><div class="form-group"><label>منشأ</label><select name="species_name" class="form-input">{% for o in origins %}<option value="{{ o }}">{{ o }}</option>{% endfor %}</select></div></div>
+        <div class="form-row">
+            <div class="form-group"><label>گونه</label><input type="text" name="species_name" class="form-input" placeholder="مثلاً طوطی"></div>
+            <div class="form-group"><label>نام واکسن</label><input type="text" name="vaccine_name" class="form-input" required></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>تاریخ تزریق</label><div class="date-fields"><input type="text" name="date_y" class="form-input form-input-sm" placeholder="سال" maxlength="4"><span>/</span><input type="text" name="date_m" class="form-input form-input-sm" placeholder="ماه" maxlength="2"><span>/</span><input type="text" name="date_d" class="form-input form-input-sm" placeholder="روز" maxlength="2"></div></div>
+            <div class="form-group"><label>مراجعه بعدی</label><div class="date-fields"><input type="text" name="next_y" class="form-input form-input-sm" placeholder="سال" maxlength="4"><span>/</span><input type="text" name="next_m" class="form-input form-input-sm" placeholder="ماه" maxlength="2"><span>/</span><input type="text" name="next_d" class="form-input form-input-sm" placeholder="روز" maxlength="2"></div></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>سریال</label><input type="text" name="serial" class="form-input"></div>
+            <div class="form-group"><label>توضیحات</label><input type="text" name="description" class="form-input"></div>
+        </div>
+        <div class="modal-actions">
+            <button type="submit" class="btn btn-primary">ثبت واکسن</button>
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('addVaxModal').style.display='none'">انصراف</button>
+        </div>
+    </form>
+</div>
+</div>
+{% endblock %}

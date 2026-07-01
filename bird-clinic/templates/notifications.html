@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block page_title %}🔔 اعلان‌ها{% endblock %}
+{% block content %}
+<form method="POST" action="{{ url_for('read_all_notifications') }}" style="margin-bottom:16px;">
+    <button type="submit" class="btn btn-secondary btn-sm">✅ خواندم همه</button>
+</form>
+{% for n in notifications %}
+<div class="notif-item {% if not n.is_read %}notif-unread{% endif %}">
+    <span class="notif-icon">
+        {% if n.notif_type == 'update' %}📝{% elif n.notif_type == 'vaccine' %}💉{% elif n.notif_type == 'alert' %}🚨{% elif n.notif_type == 'lab' %}🧪{% elif n.notif_type == 'med' %}💊{% elif n.notif_type == 'note' %}📝{% else %}🔔{% endif %}
+    </span>
+    <div class="notif-content">
+        <div class="notif-text">{{ n.message }}</div>
+        <div class="notif-time">{{ n.created_at }}</div>
+    </div>
+</div>
+{% else %}
+<div class="empty-state"><div class="empty-icon">🔔</div><p>اعلانی وجود ندارد</p></div>
+{% endfor %}
+{% endblock %}

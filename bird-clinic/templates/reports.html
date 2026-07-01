@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block page_title %}گزارشات{% endblock %}
+{% block content %}
+<div class="tabs-bar">
+    <a href="{{ url_for('reports', period='weekly') }}" class="tab {% if period == 'weekly' %}active{% endif %}">📅 هفتگی</a>
+    <a href="{{ url_for('reports', period='biweekly') }}" class="tab {% if period == 'biweekly' %}active{% endif %}">📅 ۱۵ روزه</a>
+    <a href="{{ url_for('reports', period='monthly') }}" class="tab {% if period == 'monthly' %}active{% endif %}">📅 ماهانه</a>
+</div>
+
+{% if period in ['weekly', 'biweekly'] %}
+<div class="card card-form">
+    <h3>انتخاب بازه زمانی شمسی</h3>
+    <form method="GET" action="{{ url_for('reports') }}">
+        <input type="hidden" name="period" value="{{ period }}">
+        <div class="form-row">
+            <div class="form-group">
+                <label>از تاریخ</label>
+                <div class="date-fields">
+                    {% set dfp = date_from.split('/') if date_from and '/' in date_from else ['','',''] %}
+                    <input type="text" id="df_y" name="_df_y" value="{{ dfp[0] }}" class="form-input form-input-sm" placeholder="سال" maxlength="4">
+                    <span>/</span>
+                    <input type="text" id="df_m" name="_df_m" value="{{ dfp[1] }}" class="form-input form-input-sm" placeholder="ماه" maxlength="2">
+                    <span>/</span>
+                    <input type="text" id="df_d" name="_df_d" value="{{ dfp[2] }}" class="form-input form-input-sm" placeholder="روز" maxlength="2">
+                    <input type="hidden" id="date_from" name="date_from" value="{{ date_from }}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>تا تاریخ</label>
+                <div class="date-fields">
+                    {% set dtp = date_to.split('/') if date_to and '/' in date_to else ['','',''] %}
+                    <input type="text" id="dt_y" name="_dt_y" value="{{ dtp[0] }}" class="form-input form-input-sm" placeholder="سال" maxlength="4">
+                    <span>/</span>
+                    <input type="text" id="dt_m" name="_dt_m" value="{{ dtp[1] }}" class="form-input form-input-sm" placeholder="ماه" maxlength="2">
+                    <span>/</span>
+                    <input type="text" id="dt_d" name="_dt_d" value="{{ dtp[2] }}" class="form-input form-input-sm" placeholder="روز" maxlength="2">
+                    <input type="hidden" id="date_to" name="date_to" value="{{ date_to }}">
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm" onclick="buildDates()">نمایش گزارش</button>
+    </form>
+</div>
+{% elif period == 'monthly' %}
+<div class="card card-form">
+    <h3>انتخاب ماه</h3>
+    <form method="GET" action="{{ url_for('reports') }}">
+        <input type="hidden" name="period" value="monthly">
+        <div class="form-row">
+            <div class="form-group">
+                <label>سال</label>
+                <input type="text" name="year" value="{{ year }}" class="form-input form-input-sm" placeholder="مثلاً ۱۴۰۵" maxlength="4" style="width:100px;">
+            </div>
+            <div class="form-group"><label>ماه</label>
+                <select name="month" class="form-input" style="width:auto;">
+                    {% for m in shamsi_months %}
+                    <option value="{{ loop.index }}" {% if month == loop.index|string %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">نمایش گزارش</button>
+    </form>
+</div>
+{% endif %}
+
+<div class="reports-grid" style="margin-top:16px;">
+    <a href="{{ url_for('export_report', period=period, date_from=date_from, date_to=date_to, month=month, year=year) }}" class="report-card">
+        <div class="report-icon">📊</div>
+        <div class="report-info">
+            <div class="report-title">خروجی Excel</div>
+            <div class="report-desc">
+                {% if period in ['weekly','biweekly'] and date_from and date_to %}بازه {{ date_from }} تا {{ date_to }}
+                {% elif period == 'monthly' and month %}ماه {{ shamsi_months[month|int - 1] }} {{ year }}
+                {% else %}همه رکوردها{% endif %}
+            </div>
+        </div>
+        <span class="report-badge">دانلود .xlsx</span>
+    </a>
+</div>
+<div class="card" style="margin-top:16px;">
+    <div class="card-header"><h3>📊 خلاصه وضعیت کلی</h3></div>
+    <div class="card-body">
+        <div class="report-summary">
+            <div class="report-stat"><div class="report-stat-label">حاضر</div><div class="report-stat-value">{{ birds_present }}</div></div>
+            <div class="report-stat"><div class="report-stat-label">ترخیص</div><div class="report-stat-value">{{ birds_discharged }}</div></div>
+            <div class="report-stat"><div class="report-stat-label">تلفات</div><div class="report-stat-value">{{ birds_deceased }}</div></div>
+            <div class="report-stat"><div class="report-stat-label">جراحی‌ها</div><div class="report-stat-value">{{ surgery_count }}</div></div>
+        </div>
+    </div>
+</div>
+<script>
+function buildDates(){
+    var df = document.getElementById('df_y').value+'/'+document.getElementById('df_m').value.padStart(2,'0')+'/'+document.getElementById('df_d').value.padStart(2,'0');
+    var dt = document.getElementById('dt_y').value+'/'+document.getElementById('dt_m').value.padStart(2,'0')+'/'+document.getElementById('dt_d').value.padStart(2,'0');
+    if(document.getElementById('date_from')) document.getElementById('date_from').value = df;
+    if(document.getElementById('date_to')) document.getElementById('date_to').value = dt;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block page_title %}{{ 'ویرایش ' ~ bird.name if bird else 'پذیرش حیوان جدید' }}{% endblock %}
+{% block content %}
+<a href="{{ url_for('birds') }}" class="back-link">→ بازگشت</a>
+<div class="card card-form card-form-lg">
+    <h3>{{ '✏️ ویرایش' if bird else '➕ پذیرش حیوان جدید' }}</h3>
+    <div class="code-display">کد: <strong>{{ next_code }}</strong></div>
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-row">
+            <div class="form-group"><label>کد</label><input type="text" name="code" value="{{ next_code }}" class="form-input"></div>
+            <div class="form-group"><label>نام *</label><input type="text" name="name" value="{{ bird.name if bird else '' }}" class="form-input" required></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>گونه *</label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span id="speciesEmoji" style="font-size:28px;">{% if bird and bird.species %}{% if bird.species.category == 'زینتی' %}🦜{% elif bird.species.category == 'شکاری' %}🦅{% elif bird.species.category == 'اهلی' %}🐓{% else %}🐾{% endif %}{% else %}🐾{% endif %}</span>
+                    <select name="species_id" class="form-input" id="speciesSelect" required>
+                        <option value="">انتخاب</option>
+                        {% for sp in all_species %}<option value="{{ sp.id }}" data-cat="{{ sp.category }}" {% if bird and bird.species_id == sp.id %}selected{% endif %}>{{ sp.name }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-group"><label>نژاد</label><input type="text" name="breed" value="{{ bird.breed if bird else '' }}" class="form-input"></div>
+        </div>
+        <div id="subCategoryDiv" style="display:{% if bird and bird.species and bird.species.category == 'سایر' %}block{% else %}none{% endif %};">
+            <div class="form-group">
+                <label>نوع حیوان (سایر)</label>
+                <select name="sub_category" class="form-input">
+                    <option value="">انتخاب کنید</option>
+                    <option value="پستانداران کوچک" {% if bird and bird.sub_category == 'پستانداران کوچک' %}selected{% endif %}>🐭 پستانداران کوچک</option>
+                    <option value="خرگوش" {% if bird and bird.sub_category == 'خرگوش' %}selected{% endif %}>🐰 خرگوش</option>
+                    <option value="خزنده" {% if bird and bird.sub_category == 'خزنده' %}selected{% endif %}>🦎 خزنده</option>
+                    <option value="حیات وحش" {% if bird and bird.sub_category == 'حیات وحش' %}selected{% endif %}>🌿 حیات وحش</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>جنسیت</label><select name="sex" class="form-input"><option value="">نامشخص</option><option value="نر" {% if bird and bird.sex == 'نر' %}selected{% endif %}>نر</option><option value="ماده" {% if bird and bird.sex == 'ماده' %}selected{% endif %}>ماده</option></select></div>
+            <div class="form-group"><label>سن</label><input type="text" name="age" value="{{ bird.age if bird else '' }}" class="form-input"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>وزن (kg)</label><input type="text" name="weight" value="{{ bird.weight if bird else '' }}" class="form-input"></div>
+            <div class="form-group"><label>تعداد</label><input type="number" name="quantity" value="{{ bird.quantity if bird and bird.quantity else 1 }}" class="form-input" min="1" placeholder="تعداد کیس"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>رینگ</label><input type="text" name="ring" value="{{ bird.ring if bird else '' }}" class="form-input"></div>
+            <div class="form-group"><label>بخش</label><input type="text" name="section" value="{{ bird.section if bird else '' }}" class="form-input"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>منشأ</label><select name="origin" class="form-input">{% for o in origins %}<option value="{{ o }}" {% if bird and bird.origin == o %}selected{% endif %}>{{ o }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>تاریخ ورود</label><input type="text" name="entry_date" value="{{ bird.entry_date if bird else shamsi_now }}" class="form-input"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>وضعیت درمان</label><select name="treatment_status" class="form-input"><option value="بدون درمان" {% if bird and bird.treatment_status == 'بدون درمان' %}selected{% endif %}>بدون درمان</option><option value="تحت درمان فعال" {% if bird and bird.treatment_status == 'تحت درمان فعال' %}selected{% endif %}>🟢 تحت درمان فعال</option><option value="در انتظار آزمایش" {% if bird and bird.treatment_status == 'در انتظار آزمایش' %}selected{% endif %}>🟡 در انتظار آزمایش</option><option value="وخیم" {% if bird and bird.treatment_status == 'وخیم' %}selected{% endif %}>🔴 وخیم</option></select></div>
+        </div>
+        <div class="form-group"><label>عکس</label><input type="file" name="photo" accept="image/*" class="form-input"></div>
+        <div class="form-group"><label><input type="checkbox" name="needs_surgery" {% if bird and bird.needs_surgery %}checked{% endif %}> نیاز به جراحی</label></div>
+        <div class="form-group"><label>توضیحات جراحی</label><textarea name="surgery_notes" class="form-input" rows="2">{{ bird.surgery_notes if bird else '' }}</textarea></div>
+        <button type="submit" class="btn btn-primary btn-full">{{ '💾 ذخیره' if bird else '✅ ثبت حیوان' }}</button>
+    </form>
+</div>
+<script>
+var SPECIES_CATS = { {% for sp in all_species %}"{{ sp.id }}": "{{ sp.category }}"{% if not loop.last %},{% endif %}{% endfor %} };
+var EMOJIS = {'زینتی': '🦜', 'شکاری': '🦅', 'اهلی': '🐓', 'سایر': '🐾'};
+document.getElementById('speciesSelect').addEventListener('change', function(){
+    var cat = SPECIES_CATS[this.value] || '';
+    document.getElementById('speciesEmoji').textContent = EMOJIS[cat] || '🐾';
+    document.getElementById('subCategoryDiv').style.display = cat === 'سایر' ? 'block' : 'none';
+});
+</script>
+{% endblock %}

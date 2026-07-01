@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: bird-clinic
+    runtime: python
+    buildCommand: bash build.sh
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: "3.11.6"

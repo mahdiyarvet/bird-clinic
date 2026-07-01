@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block page_title %}⚙️ پنل ادمین{% endblock %}
+{% block content %}
+<div class="admin-grid">
+    <div class="card"><div class="card-header"><h3>👥 مدیریت کاربران</h3></div><div class="card-body">
+        <form method="POST" action="{{ url_for('add_user') }}" class="admin-form">
+            <div class="form-row"><input type="text" name="username" class="form-input form-input-sm" placeholder="نام کاربری" required><input type="text" name="full_name" class="form-input form-input-sm" placeholder="نام کامل" required><input type="password" name="password" class="form-input form-input-sm" placeholder="رمز" required><label class="checkbox-label"><input type="checkbox" name="is_admin"> ادمین</label><button type="submit" class="btn btn-primary btn-sm">➕</button></div>
+        </form>
+        <div class="admin-list">{% for user in users %}<div class="admin-item"><div><strong>{{ user.full_name }}</strong> <small>({{ user.username }})</small> {% if user.is_admin %}<span class="badge badge-active">ادمین</span>{% endif %}</div>{% if user.id != current_user.id %}<form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" onsubmit="return confirm('حذف؟');"><button class="btn btn-danger btn-xs">🗑️</button></form>{% endif %}</div>{% endfor %}</div>
+    </div></div>
+    <div class="card"><div class="card-header"><h3>🐦 مدیریت گونه‌ها</h3></div><div class="card-body">
+        <form method="POST" action="{{ url_for('add_species') }}" class="admin-form">
+            <div class="form-row"><input type="text" name="name" class="form-input form-input-sm" placeholder="نام گونه" required><select name="category" class="form-input form-input-sm"><option value="زینتی">زینتی</option><option value="شکاری">شکاری</option><option value="اهلی">اهلی</option><option value="سایر">سایر</option></select><button type="submit" class="btn btn-primary btn-sm">➕</button></div>
+        </form>
+        <div class="admin-list">{% for sp in species_list %}<div class="admin-item"><div><strong>{{ sp.name }}</strong> <span class="badge badge-{{ sp.category }}">{{ sp.category }}</span> <small>({{ sp.birds|length }})</small></div>{% if sp.birds|length == 0 %}<form method="POST" action="{{ url_for('delete_species', sp_id=sp.id) }}"><button class="btn btn-danger btn-xs">🗑️</button></form>{% endif %}</div>{% endfor %}</div>
+    </div></div>
+</div>
+<div class="card" style="margin-top:16px;">
+    <div class="card-header"><h3>💾 بکاپ دیتابیس</h3></div>
+    <div class="card-body"><a href="{{ url_for('backup_db') }}" class="btn btn-primary">📥 دانلود بکاپ دیتابیس</a><p style="margin-top:8px;font-size:12px;color:#888;">فایل دیتابیس SQLite دانلود می‌شود — در جای امن نگهداری کنید.</p></div>
+</div>
+{% endblock %}
