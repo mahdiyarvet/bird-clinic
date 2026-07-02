@@ -1802,7 +1802,7 @@ def migrate_db():
         <h2>📦 انتقال دیتا از SQLite</h2>
         <p>فایل bird_clinic.db رو آپلود کن</p>
         <form method="POST" enctype="multipart/form-data">
-        <input type="file" name="db_file" accept=".db" required><br>
+        <input type="file" name="db_file" required><br>
         <button type="submit" style="background:#16a34a;color:white;border:none;border-radius:8px;padding:12px 24px;cursor:pointer;">شروع انتقال</button>
         </form></body></html>'''
     import sqlite3, tempfile
@@ -1810,12 +1810,12 @@ def migrate_db():
     if not f:
         flash('فایلی انتخاب نشد', 'error')
         return redirect(url_for('migrate_db'))
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
-    f.save(tmp.name)
-    tmp.close()
+    tmp_path = os.path.join('/tmp', 'migrate_bird_clinic.db')
+    f.save(tmp_path)
     results = []
     try:
-        conn = sqlite3.connect(tmp.name)
+        conn = sqlite3.connect(tmp_path)
+        conn.execute('SELECT count(*) FROM sqlite_master')
         conn.row_factory = sqlite3.Row
         tables_order = ['user','species','bird','medical_record','medication',
             'need_item','lab_result','surgery_record','activity_log',
@@ -1850,7 +1850,7 @@ def migrate_db():
     except Exception as e:
         results.append(f'❌ Error: {e}')
     finally:
-        os.unlink(tmp.name)
+        os.unlink(tmp_path)
     return '<br>'.join(results) + '<br><br><a href="/">برو به داشبورد</a>'
 
 init_db()
