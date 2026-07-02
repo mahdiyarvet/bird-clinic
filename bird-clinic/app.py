@@ -1788,6 +1788,71 @@ def init_db():
                 db.session.add(Species(name=name, category=name))
         db.session.commit()
 
+# ══════════════════════════════════════
+# MIGRATION (one-time)
+# ══════════════════════════════════════
+@app.route('/migrate-db', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def migrate_db():
+    if request.method == 'GET':
+        return '''<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>انتقال دیتا</title>
+        <style>body{font-family:sans-serif;max-width:500px;margin:50px auto;text-align:center;}
+        input,button{margin:10px;padding:10px;}</style></head><body>
+        <h2>📦 انتقال دیتا از SQLite</h2>
+        <p>فایل bird_clinic.db رو آپلود کن</p>
+        <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="db_file" accept=".db" required><br>
+        <button type="submit" style="background:#16a34a;color:white;border:none;border-radius:8px;padding:12px 24px;cursor:pointer;">شروع انتقال</button>
+        </form></body></html>'''
+    import sqlite3, tempfile
+    f = request.files.get('db_file')
+    if not f:
+        flash('فایلی انتخاب نشد', 'error')
+        return redirect(url_for('migrate_db'))
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
+    f.save(tmp.name)
+    tmp.close()
+    results = []
+    try:
+        conn = sqlite3.connect(tmp.name)
+        conn.row_factory = sqlite3.Row
+        tables_order = ['user','species','bird','medical_record','medication',
+            'need_item','lab_result','surgery_record','activity_log',
+            'notification','vaccine','treatment_log','note','med_inventory']
+        from sqlalchemy import text
+        for table in tables_order:
+            try:
+                rows = conn.execute(f'SELECT * FROM "{table}"').fetchall()
+                if not rows:
+                    results.append(f'⏭️ {table}: empty')
+                    continue
+                cols = [desc[0] for desc in conn.execute(f'SELECT * FROM "{table}" LIMIT 1').description]
+                db.session.execute(text(f'DELETE FROM "{table}"'))
+                for row in rows:
+                    values = dict(zip(cols, row))
+                    placeholders = ', '.join([f':{c}' for c in cols])
+                    col_names = ', '.join([f'"{c}"' for c in cols])
+                    db.session.execute(text(f'INSERT INTO "{table}" ({col_names}) VALUES ({placeholders})'), values)
+                db.session.commit()
+                try:
+                    max_id = conn.execute(f'SELECT MAX(id) FROM "{table}"').fetchone()[0]
+                    if max_id:
+                        db.session.execute(text(f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), {max_id})"))
+                        db.session.commit()
+                except:
+                    db.session.rollback()
+                results.append(f'✅ {table}: {len(rows)} rows')
+            except Exception as e:
+                db.session.rollback()
+                results.append(f'⚠️ {table}: {e}')
+        conn.close()
+    except Exception as e:
+        results.append(f'❌ Error: {e}')
+    finally:
+        os.unlink(tmp.name)
+    return '<br>'.join(results) + '<br><br><a href="/">برو به داشبورد</a>'
+
 init_db()
 
 if __name__ == '__main__':
