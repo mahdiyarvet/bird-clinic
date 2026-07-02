@@ -1820,19 +1820,36 @@ def migrate_db():
         tables_order = ['user','species','bird','medical_record','medication',
             'need_item','lab_result','surgery_record','activity_log',
             'notification','vaccine','treatment_log','note','med_inventory']
-        from sqlalchemy import text
+        from sqlalchemy import text, inspect
+        inspector = inspect(db.engine)
+        # Boolean columns that need casting
+        bool_cols = {'is_admin','is_active_user','needs_surgery','had_surgery',
+                     'is_clinic','is_read','is_done'}
         for table in tables_order:
             try:
                 rows = conn.execute(f'SELECT * FROM "{table}"').fetchall()
                 if not rows:
                     results.append(f'⏭️ {table}: empty')
                     continue
-                cols = [desc[0] for desc in conn.execute(f'SELECT * FROM "{table}" LIMIT 1').description]
+                sqlite_cols = [desc[0] for desc in conn.execute(f'SELECT * FROM "{table}" LIMIT 1').description]
+                # Get PostgreSQL columns
+                try:
+                    pg_cols = [c['name'] for c in inspector.get_columns(table)]
+                except:
+                    pg_cols = sqlite_cols
+                # Only use columns that exist in both
+                valid_cols = [c for c in sqlite_cols if c in pg_cols]
                 db.session.execute(text(f'DELETE FROM "{table}"'))
                 for row in rows:
-                    values = dict(zip(cols, row))
-                    placeholders = ', '.join([f':{c}' for c in cols])
-                    col_names = ', '.join([f'"{c}"' for c in cols])
+                    raw = dict(zip(sqlite_cols, row))
+                    values = {}
+                    for c in valid_cols:
+                        v = raw[c]
+                        if c in bool_cols:
+                            v = bool(v) if v is not None else False
+                        values[c] = v
+                    placeholders = ', '.join([f':{c}' for c in valid_cols])
+                    col_names = ', '.join([f'"{c}"' for c in valid_cols])
                     db.session.execute(text(f'INSERT INTO "{table}" ({col_names}) VALUES ({placeholders})'), values)
                 db.session.commit()
                 try:
