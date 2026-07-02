@@ -1839,7 +1839,7 @@ def migrate_db():
                     pg_cols = sqlite_cols
                 # Only use columns that exist in both
                 valid_cols = [c for c in sqlite_cols if c in pg_cols]
-                db.session.execute(text(f'DELETE FROM "{table}"'))
+                db.session.execute(text(f'TRUNCATE TABLE "{table}" CASCADE'))
                 for row in rows:
                     raw = dict(zip(sqlite_cols, row))
                     values = {}
