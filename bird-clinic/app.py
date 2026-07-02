@@ -1050,8 +1050,14 @@ def discharge_bird(bird_id):
         bird.discharge_date = shamsi_now()
     else:
         bird.quantity = (bird.quantity or 1) - transfer_count
+        base_code = bird.code + '-D'
+        counter = 1
+        new_code = base_code + str(counter)
+        while Bird.query.filter_by(code=new_code).first():
+            counter += 1
+            new_code = base_code + str(counter)
         new_bird = Bird(
-            code=bird.code + '-D' + str(transfer_count),
+            code=new_code,
             name=bird.name, species_id=bird.species_id, breed=bird.breed,
             sex=bird.sex, age=bird.age, ring=bird.ring, section=bird.section,
             weight=bird.weight, origin=bird.origin, entry_date=bird.entry_date,
@@ -1077,8 +1083,14 @@ def death_bird(bird_id):
         bird.death_date = shamsi_now()
     else:
         bird.quantity = (bird.quantity or 1) - transfer_count
+        base_code = bird.code + '-X'
+        counter = 1
+        new_code = base_code + str(counter)
+        while Bird.query.filter_by(code=new_code).first():
+            counter += 1
+            new_code = base_code + str(counter)
         new_bird = Bird(
-            code=bird.code + '-X' + str(transfer_count),
+            code=new_code,
             name=bird.name, species_id=bird.species_id, breed=bird.breed,
             sex=bird.sex, age=bird.age, ring=bird.ring, section=bird.section,
             weight=bird.weight, origin=bird.origin, entry_date=bird.entry_date,
